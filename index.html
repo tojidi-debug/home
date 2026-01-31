@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>종결처리 현황 대시보드</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 컬러 가이드 */
+            --bg-card: #fffdf9; /* 카드 배경: 연한 베이지 */
+            --text-dark: #1e293b; 
+            --text-gray: #64748b;      
+            --text-highlight: #00695c; 
+            --text-dim: #94a3b8;
+            
+            /* 지표 배지 색상 */
+            --bg-badge: #f0fdf4; 
+            --rank-up: #dc2626;   
+            --rank-down: #2563eb; 
+            --count-up: #15803d;  
+            
+            /* 버튼 테마 */
+            --btn-active-bg: #334155;
+            --btn-active-text: #ffffff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            /* 배경 그라데이션: 보라 -> 네이비 */
+            background: linear-gradient(135deg, #7c3aed 0%, #1e40af 100%);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            font-family: 'Pretendard', sans-serif;
+            margin: 0;
+            padding: 60px; 
+            overflow-y: auto; 
+        }
+
+        .dashboard-container {
+            width: 100%;
+            max-width: 1100px;
+            background-color: var(--bg-card);
+            border-radius: 24px;
+            padding: 25px 35px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.4);
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 헤더 레이아웃 */
+        .header {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 5px;
+            gap: 5px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .title-group h1 {
+            font-size: 34px;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+            color: var(--text-dark);
+            margin: 0;
+            line-height: 1;
+        }
+
+        /* 범례 */
+        .legend { 
+            display: flex; 
+            gap: 15px; 
+            transform: translateY(5px); 
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--text-dark); }
+        .legend-color { width: 12px; height: 12px; border-radius: 3px; }
+        .bg-ipo { background: Indigo; }
+        .bg-gen { background: green; }
+        .bg-sus { background-color: SteelBlue; }
+
+        /* 컨트롤 패널 */
+        .control-panel {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .week-btn-wrapper {
+            display: flex;
+            gap: 8px;
+            background: #f1f5f9;
+            padding: 4px 8px;
+            border-radius: 10px;
+            height: 56px;
+            align-items: center;
+            flex-wrap: wrap;
+            overflow-x: auto;
+        }
+
+        .btn-w {
+            border: none;
+            background: transparent;
+            padding: 2px 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+            height: 40px;
+            color: var(--text-gray);
+            transition: all 0.2s ease;
+        }
+        .btn-w .m { font-size: 11px; font-weight: 600; margin-bottom: 1px; }
+        .btn-w .w { font-size: 14px; font-weight: 800; }
+        .btn-w.active {
+            background: #334155;
+            color: #fff;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.15);
+        }
+        .btn-w.active .m { color: #cbd5e1; }
+
+        .today-date {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-dim);
+            margin-left: auto;
+            padding-right: 5px;
+        }
+
+        /* 차트 영역 */
+        .chart-frame {
+            position: relative;
+            background: #fff;
+            margin-top: 5px;
+            height: 565px;
+            border-radius: 8px;
+        }
+        
+        .bar-row {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            padding: 0 5px;
+            transition: transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .row-name {
+            width: 85px;
+            font-size: 15px; /* 이름 크기 */
+            font-weight: 700;
+            text-align: left;
+            padding-left: 5px;
+            color: var(--text-gray); 
+            white-space: nowrap;
+            transition: color 0.3s;
+        }
+
+        .row-name.highlight {
+            color: #7c3aed !important;
+            font-weight: 800;
+        }
+
+        /* (0.5) 텍스트 스타일: 11px */
+        .small-tag {
+            font-size: 11px;
+            font-weight: 500;
+            color: var(--text-dim);
+            margin-left: 1px;
+        }
+
+        .bar-wrapper {
+            flex-grow: 1;
+            height: 22px;
+            background: #f1f5f9;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+            margin: 0 12px;
+        }
+
+        .segment {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: 800;
+            color: #fff;
+            transition: width 0.8s ease;
+            text-shadow: 0 1px 1px rgba(0,0,0,0.1);
+        }
+
+        .total-box {
+            width: 40px;
+            font-size: 14px;
+            font-weight: 800;
+            color: var(--text-dark);
+            text-align: right;
+            margin-right: 10px; 
+        }
+
+        .badge-container {
+            width: 95px; 
+            height: 22px;
+            background: #f0fdf4;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: all 0.5s ease;
+        }
+
+        .badge-container.visible { opacity: 1; }
+
+        .badge-slot {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        /* 하단 푸터 디자인 */
+        .footer {
+            margin-top: 10px;
+            padding-top: 15px;
+            border-top: 1px solid #f1f5f9;
+            display: flex;
+            justify-content: space-between; /* 양쪽 정렬 */
+            align-items: center;
+        }
+
+        .total-text {
+            color: var(--text-dark);
+            font-weight: 800;
+            font-size: 15px; /* 이름 크기와 유사하게 설정 */
+        }
+
+        .rule-text {
+            font-size: 10px;
+            color: var(--text-dim);
+        }
+        
+        .progress-bg {
+            width: 100%;
+            height: 3px;
+            background: #f1f5f9;
+            border-radius: 2px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #60a5fa, #2563eb);
+            width: 0%;
+            transition: width 0.5s linear;
+        }
+    </style>
+</head>
+<body>
+
+<div class="dashboard-container">
+    <div class="header">
+        <div class="header-top">
+            <div class="title-group">
+                <h1>종결처리 현황</h1>
+            </div>
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color bg-ipo"></div> IPO</div>
+                <div class="legend-item"><div class="legend-color bg-gen"></div> 일반심사</div>
+                <div class="legend-item"><div class="legend-color bg-sus"></div> 혐의</div>
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div class="week-btn-wrapper">
+                <div id="week-btns" style="display:flex; gap:8px; flex-wrap: wrap;"></div>
+            </div>
+            <div class="today-date" id="db-today"></div>
+        </div>
+        <div class="progress-bg"><div class="progress-fill" id="anim-progress"></div></div>
+    </div>
+
+    <div class="chart-frame" id="chart-canvas"></div>
+
+    <div class="footer">
+        <!-- 왼쪽: 총합계 (이름 크기인 15px와 동일) -->
+        <div class="total-text" id="grand-total-display">총합계: 166개</div>
+        <!-- 오른쪽: 설명 문구 -->
+        <div class="rule-text">* 순위 기준: 총건수 > 혐의 > IPO 순 &nbsp;|&nbsp; * 순위변동: <span style="color:var(--rank-up)">▲상승</span> <span style="color:var(--rank-down)">▼하락</span> &nbsp;|&nbsp; 건수증가: <span style="color:var(--count-up)">+건수</span></div>
+    </div>
+</div>
+
+<script>
+    /**
+     * [최신 데이터 소스] 1/26(월) ~ 1/31(토) 6일치 - 이미지 기준 정확한 데이터
+     */
+    const DB_CSV = `이름,1/26(월)_IPO,1/26(월)_일반,1/26(월)_혐의,1/26(월)_합계,1/27(화)_IPO,1/27(화)_일반,1/27(화)_혐의,1/27(화)_합계,1/28(수)_IPO,1/28(수)_일반,1/28(수)_혐의,1/28(수)_합계,1/29(목)_IPO,1/29(목)_일반,1/29(목)_혐의,1/29(목)_합계,1/30(금)_IPO,1/30(금)_일반,1/30(금)_혐의,1/30(금)_합계,1/31(토)_IPO,1/31(토)_일반,1/31(토)_혐의,1/31(토)_합계
+임민경,2,14,2,18,2,14,2,18,2,14,2,18,2,15,2,19,2,15,2,19,2,15,2,19
+김규종,0,12,2,14,0,12,2,14,0,12,2,14,0,12,2,14,0,13,2,15,0,15,2,17
+김가영,1,11,1,13,1,11,1,13,1,11,1,13,1,13,1,15,1,13,1,15,1,16,1,18
+김혜민,0,12,1,13,0,12,1,13,0,12,1,13,0,13,1,14,0,13,1,14,0,14,1,15
+정태양,1,10,1,12,1,10,1,12,1,10,1,12,1,10,1,12,1,10,1,12,1,12,1,14
+임지영,1,10,1,12,1,10,1,12,1,10,1,12,1,11,1,13,1,12,1,14,1,12,1,14
+이설희,2,7,2,11,2,7,2,11,2,7,2,11,2,8,2,12,2,8,2,12,2,8,2,12
+이주현,0,9,0,9,0,10,0,10,0,10,0,10,0,11,0,11,0,11,0,11,0,11,0,11
+김선우,1,8,0,9,1,8,0,9,1,8,0,9,1,8,0,9,1,9,0,10,1,9,0,10
+마혜원,0,5,2,7,0,6,2,8,0,6,2,8,0,8,2,10,0,8,2,10,0,10,2,12
+최신혜,0,7,1,8,0,7,1,8,0,7,1,8,0,8,1,9,0,8,1,9,0,9,1,10
+국민경(0.5),1,5,1,7,1,5,1,7,1,7,1,9,1,7,1,9,1,7,1,9,1,7,1,9
+김경표,0,4,1,5,0,4,1,5,0,4,1,5,0,4,1,5,0,4,1,5,0,6,1,7
+김연홍,2,2,0,4,2,2,0,4,2,2,0,4,2,2,0,4,2,2,0,4,2,5,0,7
+이명아(0.5),0,4,0,4,0,4,0,4,0,4,0,4,0,4,0,4,0,4,0,4,0,4,0,4
+변영주(0.5),0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,3,0,4,0,4`;
+
+    let globalWeeksData = [];
+    let weekLabels = [];
+    let isPlaying = false;
+    let playTimer = null;
+    let sequenceIdx = 0;
+
+    window.onload = function() {
+        initDashboard();
+        // 보안: 우클릭 방지
+        document.addEventListener('contextmenu', e => e.preventDefault());
+    };
+
+    function initDashboard() {
+        const now = new Date();
+        document.getElementById('db-today').innerText = `(TODAY: ${now.getMonth()+1}/${now.getDate()})`;
+
+        const lines = DB_CSV.trim().split('\n');
+        const headers = lines[0].split(',').map(h => h.trim());
+        const weekSet = [];
+        const seenLabels = new Set();
+        
+        headers.forEach((h, i) => {
+            if(i === 0) return;
+            let w = h.replace(/_?IPO|_?일반|_?혐의|_?합계/g, "").trim();
+            if(w && !seenLabels.has(w)) {
+                weekSet.push(w);
+                seenLabels.add(w);
+            }
+        });
+        weekLabels = weekSet;
+
+        const people = [];
+        for(let i=1; i<lines.length; i++){
+            const cols = lines[i].split(',').map(c => c.trim());
+            if(cols.length < 2) continue;
+            const pData = { name: cols[0], weeks: {} };
+            weekLabels.forEach(wName => {
+                const idxI = headers.findIndex(h => h.includes(wName) && h.includes('IPO'));
+                const idxG = headers.findIndex(h => h.includes(wName) && h.includes('일반'));
+                const idxS = headers.findIndex(h => h.includes(wName) && h.includes('혐의'));
+                const idxT = headers.findIndex(h => h.includes(wName) && h.includes('합계'));
+                pData.weeks[wName] = [parseInt(cols[idxI])||0, parseInt(cols[idxG])||0, parseInt(cols[idxS])||0, parseInt(cols[idxT])||0];
+            });
+            people.push(pData);
+        }
+
+        const tempWeeksData = [];
+        
+        weekLabels.forEach((wName, wIdx) => {
+            const list = people.map(p => ({ name: p.name, vals: p.weeks[wName] }));
+            
+            // 이전 주차의 순위 정보 (전일 순위 비교용)
+            const prevRankMap = {};
+            if(wIdx > 0 && tempWeeksData[wIdx - 1]) {
+                tempWeeksData[wIdx - 1].forEach((p, idx) => {
+                    prevRankMap[p.name] = idx + 1;
+                });
+            }
+            
+            list.sort((a, b) => {
+                // 1. 총개수 비교
+                if(b.vals[3] !== a.vals[3]) return b.vals[3] - a.vals[3];
+                // 2. 혐의 비교
+                if(b.vals[2] !== a.vals[2]) return b.vals[2] - a.vals[2];
+                // 3. IPO 비교
+                if(b.vals[0] !== a.vals[0]) return b.vals[0] - a.vals[0];
+                // 4. 전일 순위 비교 (낮은 숫자가 높은 순위)
+                const aPrevRank = prevRankMap[a.name] || 999;
+                const bPrevRank = prevRankMap[b.name] || 999;
+                return aPrevRank - bPrevRank;
+            });
+            
+            tempWeeksData.push(list.map((d, i) => ({...d, rank: i + 1})));
+        });
+        
+        globalWeeksData = tempWeeksData;
+
+        const btnContainer = document.getElementById('week-btns');
+        weekLabels.forEach((label, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-w';
+            btn.id = `btn-${idx}`;
+            
+            // 1월 1주, 1월 2주, 1월 3주는 기존 스타일
+            if(label.includes('1월')) {
+                const parts = label.split(' ');
+                btn.innerHTML = `<span class="m">${parts[0]}</span><span class="w">${parts[1]}</span>`;
+            } else {
+                // 1/25(월) 형식은 단일 라인으로
+                btn.innerHTML = `<span class="w">${label}</span>`;
+            }
+            
+            btn.onclick = () => { isPlaying = false; clearTimeout(playTimer); renderFrame(idx); };
+            btnContainer.appendChild(btn);
+        });
+
+        startAnimation();
+    }
+
+    function renderFrame(idx) {
+        weekLabels.forEach((_, i) => {
+            const b = document.getElementById(`btn-${i}`);
+            if(b) {
+                if(i === idx) b.classList.add('active'); else b.classList.remove('active');
+            }
+        });
+
+        const current = globalWeeksData[idx];
+        const prev = idx > 0 ? globalWeeksData[idx-1] : null;
+        const canvas = document.getElementById('chart-canvas');
+        const gTotal = current.reduce((a,c) => a + c.vals[3], 0);
+        document.getElementById('grand-total-display').innerText = `총합계: ${gTotal}개`;
+
+        current.forEach((person, i) => {
+            let rowId = 'row-' + person.name.replace(/[^a-zA-Z0-9ㄱ-ㅎㅏ-ㅣ가-힣]/g, "");
+            let row = document.getElementById(rowId);
+            if(!row) {
+                row = document.createElement('div');
+                row.id = rowId; row.className = 'bar-row';
+                canvas.appendChild(row);
+            }
+            row.style.transform = `translateY(${i * 34}px)`;
+
+            const maxS = 22;
+            let badgeHTML = `<div class="badge-container"></div>`;
+            let isRankChanged = false;
+
+            if(prev) {
+                const pP = prev.find(p => p.name === person.name);
+                if(pP) {
+                    const rDiff = pP.rank - person.rank;
+                    const cDiff = person.vals[3] - pP.vals[3];
+                    if(rDiff !== 0) isRankChanged = true;
+                    
+                    // 순위변동이나 건수증가가 있으면 배지 표시
+                    if(rDiff !== 0 || cDiff > 0) {
+                        let rH = '';
+                        let cH = '';
+                        
+                        if(rDiff > 0) {
+                            rH = `<span style="color:var(--rank-up)">▲${rDiff}</span>`;
+                        } else if(rDiff < 0) {
+                            rH = `<span style="color:var(--rank-down)">▼${Math.abs(rDiff)}</span>`;
+                        }
+                        
+                        if(cDiff > 0) {
+                            cH = `<span style="color:var(--count-up)">+${cDiff}</span>`;
+                        }
+                        
+                        badgeHTML = `<div class="badge-container visible"><div class="badge-slot">${rH}</div><div class="badge-slot">${cH}</div></div>`;
+                    }
+                }
+            }
+
+            let dName = person.name;
+            if(dName.includes('(0.5)')) dName = dName.replace('(0.5)', '<span class="small-tag">(0.5)</span>');
+            const nClass = isRankChanged ? 'row-name highlight' : 'row-name';
+
+            row.innerHTML = `
+                <div class="${nClass}">${dName}</div>
+                <div class="bar-wrapper">
+                    <div class="segment bg-ipo" style="width:${(person.vals[0]/maxS)*100}%;">${person.vals[0]||''}</div>
+                    <div class="segment bg-gen" style="width:${(person.vals[1]/maxS)*100}%;">${person.vals[1]||''}</div>
+                    <div class="segment bg-sus" style="width:${(person.vals[2]/maxS)*100}%;">${person.vals[2]||''}</div>
+                </div>
+                <div class="total-box">${person.vals[3]}</div>
+                ${badgeHTML}
+            `;
+        });
+    }
+
+    function startAnimation() {
+        isPlaying = true; 
+        sequenceIdx = 0;
+        
+        // 시퀀스: 1월1주, 1월2주, 1월3주, 1/25(월), 1/30(금), 1/31(토) - 이것을 2번 반복 후 1/31(토)에서 정지
+        const sequence = [...weekLabels.keys(), ...weekLabels.keys()];
+        const prog = document.getElementById('anim-progress');
+        
+        function next() {
+            if(sequenceIdx >= sequence.length) {
+                isPlaying = false; 
+                // 마지막 프레임은 1/31(토)
+                renderFrame(weekLabels.length - 1);
+                prog.style.width = '100%'; 
+                return;
+            }
+            renderFrame(sequence[sequenceIdx]);
+            prog.style.width = `${((sequenceIdx+1)/sequence.length)*100}%`;
+            sequenceIdx++;
+            playTimer = setTimeout(next, 2000); // 2초 간격
+        }
+        next();
+    }
+</script>
+
+</body>
+</html>
